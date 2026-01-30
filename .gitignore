@@ -1,0 +1,7 @@
+.env
+docker-compose.yml
+docker-compose.yaml
+postgres-data/
+log-for-parse.log
+mine-parser
+logs/
