@@ -104,12 +104,16 @@ func (s *playerService) GetPlayerStats(playerID string) (*PlayerStats, error) {
 
 	// Вычисляем общее время игры
 	var totalPlayTime time.Duration
+	// Коррекция часового пояса: сервер на -3 часа, нужно добавить 3 часа
+	timeZoneCorrection := 3 * time.Hour
 	for _, session := range sessions {
 		if session.LeaveTime != nil {
 			totalPlayTime += session.LeaveTime.Sub(session.JoinTime)
 		} else {
 			// Если сессия еще активна, считаем до текущего времени
-			totalPlayTime += time.Since(session.JoinTime)
+			// Сначала добавляем 3 часа к текущему времени, потом вычитаем время входа
+			currentTimeCorrected := time.Now().Add(timeZoneCorrection)
+			totalPlayTime += currentTimeCorrected.Sub(session.JoinTime)
 		}
 	}
 

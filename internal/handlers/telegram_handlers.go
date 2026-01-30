@@ -2,9 +2,11 @@ package handlers
 
 import (
 	"fmt"
+	"log"
 	"mine-parser/internal/models"
 	"mine-parser/internal/service"
 	"strings"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
@@ -42,31 +44,40 @@ func (h *TelegramHandlers) HandleMessage(message *tgbotapi.Message) {
 }
 
 func (h *TelegramHandlers) HandleCallback(callback *tgbotapi.CallbackQuery) {
+	// Отвечаем на callback query немедленно, чтобы убрать индикатор загрузки
+	callbackConfig := tgbotapi.NewCallback(callback.ID, "")
+	if _, err := h.bot.Send(callbackConfig); err != nil {
+		log.Printf("Ошибка при ответе на callback: %v", err)
+	}
+
 	data := callback.Data
 	chatID := callback.Message.Chat.ID
 	messageID := callback.Message.MessageID
 
-	if data == "back:main" {
-		h.sendMainMenu(chatID, messageID)
-		return
-	}
+	// Обрабатываем callback асинхронно, чтобы не блокировать основной поток
+	go func() {
+		if data == "back:main" {
+			h.sendMainMenu(chatID, messageID)
+			return
+		}
 
-	if strings.HasPrefix(data, "player:") {
-		playerID := strings.TrimPrefix(data, "player:")
-		h.showPlayerInfo(chatID, messageID, playerID)
-	} else if strings.HasPrefix(data, "advancements:") {
-		playerID := strings.TrimPrefix(data, "advancements:")
-		h.showAdvancements(chatID, messageID, playerID)
-	} else if strings.HasPrefix(data, "commands:") {
-		playerID := strings.TrimPrefix(data, "commands:")
-		h.showCommands(chatID, messageID, playerID)
-	} else if data == "online" {
-		h.showOnlinePlayers(chatID, messageID)
-	} else if data == "all_players" {
-		h.showAllPlayers(chatID, messageID)
-	} else if data == "back" {
-		h.sendMainMenu(chatID, messageID)
-	}
+		if strings.HasPrefix(data, "player:") {
+			playerID := strings.TrimPrefix(data, "player:")
+			h.showPlayerInfo(chatID, messageID, playerID)
+		} else if strings.HasPrefix(data, "advancements:") {
+			playerID := strings.TrimPrefix(data, "advancements:")
+			h.showAdvancements(chatID, messageID, playerID)
+		} else if strings.HasPrefix(data, "commands:") {
+			playerID := strings.TrimPrefix(data, "commands:")
+			h.showCommands(chatID, messageID, playerID)
+		} else if data == "online" {
+			h.showOnlinePlayers(chatID, messageID)
+		} else if data == "all_players" {
+			h.showAllPlayers(chatID, messageID)
+		} else if data == "back" {
+			h.sendMainMenu(chatID, messageID)
+		}
+	}()
 }
 
 func (h *TelegramHandlers) sendMainMenu(chatID int64, messageID int) {
@@ -93,7 +104,9 @@ func (h *TelegramHandlers) sendMainMenu(chatID int64, messageID int) {
 		msg.ReplyMarkup = keyboard
 		sentMsg = msg
 	}
-	h.bot.Send(sentMsg)
+	if _, err := h.bot.Send(sentMsg); err != nil {
+		log.Printf("Ошибка при отправке сообщения: %v", err)
+	}
 }
 
 func (h *TelegramHandlers) showOnlinePlayers(chatID int64, messageID int) {
@@ -198,10 +211,14 @@ func (h *TelegramHandlers) showPlayerInfo(chatID int64, messageID int, playerID 
 		}
 	}
 
-	text := fmt.Sprintf("👤 Игрок: %s\n%s\n%s",
+	// Форматируем общее время игры в часах
+	totalHours := formatPlayTime(player.TotalPlayTime)
+
+	text := fmt.Sprintf("👤 Игрок: %s\n%s\n%s\n⏱ Время на сервере: %s",
 		player.Player.Username,
 		statusText,
-		lastSessionText)
+		lastSessionText,
+		totalHours)
 
 	keyboard := tgbotapi.NewInlineKeyboardMarkup(
 		tgbotapi.NewInlineKeyboardRow(
@@ -316,5 +333,14 @@ func (h *TelegramHandlers) showCommands(chatID int64, messageID int, playerID st
 
 func (h *TelegramHandlers) sendError(chatID int64, text string) {
 	msg := tgbotapi.NewMessage(chatID, "❌ "+text)
-	h.bot.Send(msg)
+	if _, err := h.bot.Send(msg); err != nil {
+		log.Printf("Ошибка при отправке сообщения: %v", err)
+	}
+}
+
+// formatPlayTime форматирует время игры в формат "X.Xч"
+func formatPlayTime(duration time.Duration) string {
+	hours := duration.Hours()
+	// Округляем до одного знака после запятой
+	return fmt.Sprintf("%.1fч", hours)
 }

@@ -60,9 +60,9 @@ func TelegramBot() {
 	// 8. Обработка обновлений
 	for update := range updates {
 		if update.Message != nil {
-			telegramHandlers.HandleMessage(update.Message)
+			go telegramHandlers.HandleMessage(update.Message)
 		} else if update.CallbackQuery != nil {
-			telegramHandlers.HandleCallback(update.CallbackQuery)
+			go telegramHandlers.HandleCallback(update.CallbackQuery)
 		}
 	}
 }
