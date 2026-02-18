@@ -6,6 +6,14 @@ import (
 	"time"
 )
 
+// Глобальная функция для отправки событий (устанавливается из app/notifications.go)
+var globalLoginEventSender func(playerID, username string)
+
+// SetGlobalLoginEventSender устанавливает глобальную функцию отправки событий
+func SetGlobalLoginEventSender(sender func(playerID, username string)) {
+	globalLoginEventSender = sender
+}
+
 type PlayerService interface {
 	RegisterLogin(playerID, username string, ip string, entityID int, timestamp time.Time) error
 	RegisterLogout(playerID string, timestamp time.Time) error
@@ -70,7 +78,17 @@ func (s *playerService) RegisterLogin(playerID, username string, ip string, enti
 		EntityID:  entityID,
 	}
 
-	return s.sessionRepo.Create(session)
+	err = s.sessionRepo.Create(session)
+	if err != nil {
+		return err
+	}
+
+	// Отправляем событие входа игрока (не блокируем основной поток)
+	if globalLoginEventSender != nil {
+		go globalLoginEventSender(playerID, username)
+	}
+
+	return nil
 }
 
 func (s *playerService) RegisterLogout(playerID string, timestamp time.Time) error {

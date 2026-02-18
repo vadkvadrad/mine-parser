@@ -16,7 +16,7 @@ func InitDB(dsn string) *gorm.DB {
 	}
 
 	// Автоматическая миграция моделей
-	err = db.AutoMigrate(&models.Player{}, &models.Session{}, &models.Command{}, &models.Advancement{})
+	err = db.AutoMigrate(&models.Player{}, &models.Session{}, &models.Command{}, &models.Advancement{}, &models.NotificationSubscription{}, &models.NotificationBlacklist{})
 	if err != nil {
 		log.Fatalf("Ошибка миграции: %v", err)
 	}

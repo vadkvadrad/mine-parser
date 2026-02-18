@@ -45,3 +45,22 @@ type Advancement struct {
 
 	Player Player `gorm:"foreignKey:PlayerID;references:ID"`
 }
+
+// NotificationSubscription — подписка на уведомления в Telegram
+type NotificationSubscription struct {
+	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	ChatID    int64     `gorm:"uniqueIndex;not null" json:"chat_id"`
+	Enabled   bool      `gorm:"default:false;not null" json:"enabled"`
+	CreatedAt time.Time `gorm:"not null" json:"created_at"`
+	UpdatedAt time.Time `gorm:"not null" json:"updated_at"`
+}
+
+// NotificationBlacklist — черный список игроков для уведомлений
+type NotificationBlacklist struct {
+	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	ChatID    int64     `gorm:"index;not null" json:"chat_id"`
+	PlayerID  string    `gorm:"type:uuid;index;not null" json:"player_id"`
+	CreatedAt time.Time `gorm:"not null" json:"created_at"`
+
+	Player Player `gorm:"foreignKey:PlayerID;references:ID"`
+}

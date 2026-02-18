@@ -32,11 +32,13 @@ func TelegramBot() {
 	sessionRepo := repo.NewSessionRepository(dbConn)
 	commandRepo := repo.NewCommandRepository(dbConn)
 	advancementRepo := repo.NewAdvancementRepository(dbConn)
+	notificationRepo := repo.NewNotificationRepository(dbConn)
 
 	// 4. Сервисы
 	playerSvc := service.NewPlayerService(playerRepo, sessionRepo, commandRepo, advancementRepo)
 	commandSvc := service.NewCommandService(commandRepo, sessionRepo)
 	advancementSvc := service.NewAdvancementService(advancementRepo)
+	notificationSvc := service.NewNotificationService(notificationRepo)
 
 	// 5. Создание бота
 	bot, err := tgbotapi.NewBotAPI(cfg.Tg.Token)
@@ -48,16 +50,19 @@ func TelegramBot() {
 	bot.Debug = false
 	log.Printf("Авторизован как %s", bot.Self.UserName)
 
-	// 6. Создание хендлеров
-	telegramHandlers := handlers.NewTelegramHandlers(bot, playerSvc, commandSvc, advancementSvc)
+	// 6. Запуск сервиса отправки уведомлений
+	StartNotificationSender(bot, notificationSvc)
 
-	// 7. Настройка обновлений
+	// 7. Создание хендлеров
+	telegramHandlers := handlers.NewTelegramHandlers(bot, playerSvc, commandSvc, advancementSvc, notificationSvc)
+
+	// 8. Настройка обновлений
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
 	updates := bot.GetUpdatesChan(u)
 
-	// 8. Обработка обновлений
+	// 9. Обработка обновлений
 	for update := range updates {
 		if update.Message != nil {
 			go telegramHandlers.HandleMessage(update.Message)
